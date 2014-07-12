@@ -1,6 +1,9 @@
 <?php
 
 class BPES_Group_Iterator extends WPES_Abstract_Iterator {
+	public function init( $args ) {
+		parent::init( $args );
+	}
 
 	public function count_potential_docs() {
 		return BP_Groups_Group::get_total_group_count();
@@ -29,20 +32,9 @@ class BPES_Group_Iterator extends WPES_Abstract_Iterator {
 			return false;
 		}
 
-		$this->curr_ids = array();
+		$this->curr_ids = $ids;
 		$this->last_id = end( $ids );
 		$this->first_id = reset( $ids );
-
-		// Does nothing for now - is_indexable() passes through
-		foreach ( $ids as $id ) {
-			$is_indexable = $this->doc_builder->is_indexable( array(
-				'id' => $id,
-			) );
-
-			if ( $is_indexable ) {
-				$this->curr_ids = $id;
-			}
-		}
 
 		return $this->curr_ids;
 	}

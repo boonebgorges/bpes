@@ -19,6 +19,7 @@ function bpes_content_types() {
 			'name' => 'Group',
 			'field_builder' => 'BPES_Group_Field_Builder',
 			'document_builder' => 'BPES_Group_Document_Builder',
+			'iterator' => 'BPES_Group_Iterator',
 			'enabled' => bp_is_active( 'groups' ),
 		),
 	);
@@ -120,10 +121,29 @@ function bpes_bulk_index( $args = array() ) {
 
 		$document_builder = new $registered_types[ $type ]['document_builder']();
 
-		// First handle the bulk delete
-		$delete_args = array(
-			'type' => $type,
-		);
+		$iterator = new $registered_types[ $type ]['iterator']();
+
+		$docs = array();
+		while ( ! $iterator->is_done() ) {
+			$ids = $iterator->get_ids( array() );
+
+			foreach ( $ids as $id ) {
+				$ndoc = bpes_index( array(
+					'item_id' => $id,
+					'type' => $type,
+				) );
+
+				if ( false !== $ndoc ) {
+					$docs[] = $id;
+				}
+			}
+		}
+	}
+
+	if ( ! empty( $docs ) ) {
+		return true;
+	} else {
+		return false;
 	}
 }
 
