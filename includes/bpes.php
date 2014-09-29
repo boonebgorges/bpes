@@ -218,3 +218,28 @@ function bpes_request( $args = array() ) {
 
 	return $body;
 }
+
+/**
+ * Hook search results page
+ *
+ * This is a hack, and is temporary during development
+ */
+function bpes_display_results( $content ) {
+	if ( ! is_page( 'searchh' ) ) {
+		return $content;
+	}
+
+	ob_start();
+	require( dirname( __FILE__ ) . '/../templates/bpes/search-results.php' );
+	$content = ob_get_flush();
+	return $content;
+}
+add_filter( 'the_content', 'bpes_display_results', 9999 );
+
+function bpes_unified_filter_clauses() {
+	$clauses = array(
+		'or' => array(),
+	);
+
+	return apply_filters( 'bpes_unified_filter_clauses', $clauses );
+}

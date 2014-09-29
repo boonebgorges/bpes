@@ -49,57 +49,10 @@ function bpes_group_index_on_groupmeta( $meta_id, $object_id, $meta_key ) {
  */
 function bpes_bp_has_groups_args( $r ) {
 	if ( ! empty( $r['search_terms'] ) ) {
-		$search_terms = $r['search_terms'];
-
-		$terms_query = array(
-			'query_string' => array(
-				'query' => $r['search_terms'],
-				'fields' => array(
-					'name^3',
-					'description^2',
-					'slug',
-				),
-			),
-		);
-
-		$status_filter = array(
-			'or' => array(
-				array(
-					'term' => array(
-						'status' => 'public',
-					),
-				),
-				array(
-					'term' => array(
-						'status' => 'private',
-					),
-				),
-			),
-		);
-
-		if ( $r['show_hidden'] ) {
-			$status_filter['or'][] = array(
-				'term' => array(
-					'status' => 'hidden',
-				),
-			);
-		}
-
-		$search_query = new BPES_Search_Request( array(
-			'query' => array(
-				'filtered' => array(
-					'query' => $terms_query,
-					'filter' => $status_filter,
-				),
-			),
-			'size' => $r['per_page'] * 2, // Round up in case of empty weirdness. Will trim later
-			'from' => $r['per_page'] * ( $r['page'] - 1 ),
-		) );
-
-		$results = bpes_search( array(
-			'query' => $search_query->get_query(),
-			'type' => 'group',
-			'index' => 'bp',
+		$results = bpes_search_groups( $search_terms, array(
+			'show_hidden' => $r['show_hidden'],
+			'per_page' => $r['per_page'],
+			'page' => $r['page'],
 		) );
 
 		$found_ids = wp_parse_id_list( wp_list_pluck( $results['hits'], '_id' ) );
@@ -153,6 +106,117 @@ function bpes_groups_get_groups( $groups ) {
 	$groups_template->total_group_count = $results['total'];
 
 	return $has_groups;
+}
 
+function bpes_search_groups( $search_terms, $args = array() ) {
+	$r = array_merge( array(
+		'show_hidden' => false,
+		'per_page' => 20,
+		'page' => 1,
+	), $args );
+
+	$terms_query = array(
+		'query_string' => array(
+			'query' => $search_terms,
+			'fields' => array(
+				'name^3',
+				'description^2',
+				'slug',
+			),
+		),
+	);
+
+	$status_filter = array(
+		'or' => array(
+			array(
+				'term' => array(
+					'status' => 'public',
+				),
+			),
+			array(
+				'term' => array(
+					'status' => 'private',
+				),
+			),
+		),
+	);
+
+	if ( $r['show_hidden'] ) {
+		$status_filter['or'][] = array(
+			'term' => array(
+				'status' => 'hidden',
+			),
+		);
+	}
+
+	$search_query = new BPES_Search_Request( array(
+		'query' => array(
+			'filtered' => array(
+				'query' => $terms_query,
+				'filter' => $status_filter,
+			),
+		),
+		'size' => $r['per_page'] * 2, // Round up in case of empty weirdness. Will trim later
+		'from' => $r['per_page'] * ( $r['page'] - 1 ),
+	) );
+
+	$results = bpes_search( array(
+		'query' => $search_query->get_query(),
+		'type' => 'group',
+		'index' => 'bp',
+	) );
+
+	return $results;
+}
+
+function bpes_search_clauses_for_groups( $args = array() ) {
+	$r = array_merge( array(
+		'show_hidden' => false,
+	), $args );
+
+	$status_filter = array(
+		'or' => array(
+			0 => array(
+				'term' => array(
+					'status' => 'public',
+				),
+			),
+			1 => array(
+				'term' => array(
+					'status' => 'private',
+				),
+			),
+		),
+	);
+
+	if ( $r['show_hidden'] ) {
+		$status_filter['or'][] = array(
+			'term' => array(
+				'status' => 'hidden',
+			),
+		);
+	}
+
+	$type_filter = array(
+		'type' => array(
+			'value' => 'group',
+		),
+	);
+
+	return array(
+		'and' => array(
+			0 => $type_filter,
+			1 => $status_filter,
+		),
+	);
 
 }
+
+/**
+ * Add group-specific clauses to the unified filter clauses
+ */
+function bpes_unified_filter_clauses_groups( $clauses ) {
+	$clauses['or'][] = bpes_search_clauses_for_groups();
+	return $clauses;
+}
+add_filter( 'bpes_unified_filter_clauses', 'bpes_unified_filter_clauses_groups' );
